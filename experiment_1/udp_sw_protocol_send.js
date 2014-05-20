@@ -17,6 +17,9 @@ var timeout_flag = null,  /* use timeout to check network env */
 var buf = null,           /* buffer to send */
     input = null;         /* utf-8 string from standard input */
 
+//var seq = new Buffer(1);
+//seq.writeInt8(1);         /* seq for packet */
+
 /* handle input inside an event loop */
 process.stdin.on('readable', init);
 process.stdin.setEncoding('utf8');
@@ -34,6 +37,7 @@ dgram_send.on('message', function (msg, rinfo) {
       break;
     case 'b':
     case 'c':
+      console.log('retry sending now...');
       sent = true;
       process.stdin.pause();
       dgram_send.send(buf, 0, buf.length, target.PORT, target.ADDRESS);
@@ -52,10 +56,14 @@ function init() {
   if (!input) return;
   buf = new Buffer(input);
   Array.prototype.pop.call(buf);
-  dgram_send.send(buf, 0, buf.length, target.PORT, target.ADDRESS/*, error_cb*/);
+  /* seq: 0/1 */
+  //seq.writeInt8(++seq.readInt8(0) % 2);
+  /* concat an seq to buf */
+  //buf = Buffer.concat([seq, buf]);
+  dgram_send.send(buf, 0, buf.length, target.PORT, target.ADDRESS);
   timeout_flag = setTimeout(timeout_cb, 1000 * 5);
   sent = true;
-};
+}
 
 function timeout_cb() { 
   clearTimeout(timeout_flag);

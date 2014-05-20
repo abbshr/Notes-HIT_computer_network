@@ -13,6 +13,9 @@ var input = null,
 
 var lock = true;
 
+//var ACK = new Buffer(1);
+//ACK.writeInt8(1);
+
 process.stdin.setEncoding('utf8');
 process.stdin.on('readable', init);
 
@@ -22,6 +25,7 @@ dgram_recv.on('message', function (msg, rinfo) {
   console.log('a. ACK\nb. NAK\nc. timeout');
   target.ADDRESS = rinfo.address;
   target.PORT = rinfo.port;
+  //seq = msg.readInt8(0);    // get seq in segment head
   lock = false;
   process.stdin.resume();
 });
@@ -29,7 +33,7 @@ dgram_recv.on('message', function (msg, rinfo) {
 dgram_recv.on('listening', function () {
   var address = dgram_recv.address();
   console.log('reciver is listening on ', address.address + ':' + address.port);
-})
+});
 
 // block the process to recive the datagram
 dgram_recv.bind(origin.PORT);
@@ -39,7 +43,9 @@ function init() {
   input = process.stdin.read();
   if (!input) return;
   buf = new Buffer(input);
-  Array.prototype.pop.call(buf); 
+  /* concat an ACK* to buf */
+  //buf = Buffer.concat([ACK, buf]);
+  Array.prototype.pop.call(buf);
   dgram_recv.send(buf, 0, buf.length, target.PORT, target.ADDRESS);
   lock = true;
 }
