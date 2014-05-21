@@ -2,7 +2,7 @@ var dgram = require('dgram');
 var dgram_recv = dgram.createSocket('udp4');
 
 var origin = {
-  PORT: 3000,
+  PORT: process.argv[2] || 3000,
   ADDRESS: 'localhost'
 };
 // rinfo cached

@@ -2,8 +2,8 @@ var dgram = require('dgram');
 var dgram_send = dgram.createSocket('udp4');
 
 var target = {
-  PORT: 3000,
-  ADDRESS: '127.0.0.1'
+  PORT: process.argv[3] || 3000,
+  ADDRESS: process.argv[2] || '127.0.0.1'
 };
 var origin = {
   PORT: 8888,
@@ -37,12 +37,15 @@ dgram_send.on('message', function (msg, rinfo) {
       break;
     case 'b':
     case 'c':
-      console.log('retry sending now...');
+      console.log('retry now...');
       sent = true;
       process.stdin.pause();
       dgram_send.send(buf, 0, buf.length, target.PORT, target.ADDRESS);
       timeout_flag = setTimeout(timeout_cb, 1000 * 5);
       break;
+    default:
+      sent = false;
+      process.stdin.resume();
   }
 });
 
