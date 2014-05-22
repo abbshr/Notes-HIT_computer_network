@@ -64,6 +64,8 @@ function init() {
   /* concat an seq to buf */
   //buf = Buffer.concat([seq, buf]);
   dgram_send.send(buf, 0, buf.length, target.PORT, target.ADDRESS);
+  // once send packet, reset ref
+  ref = 1;
   timeout_flag = setTimeout(timeout_cb, 1000 * 5);
   sent = true;
 }
