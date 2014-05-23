@@ -35,9 +35,6 @@ var S = 10;
 // times for timeout retry
 var ref = 1;
 
-// true: sent, false: not sent
-//var lock = true;
-
 /* handle input inside an event loop */
 process.stdin.on('readable', handle_input_cb);
 process.stdin.setEncoding('utf8');
@@ -54,7 +51,6 @@ dgram_send.on('message', function (msg, rinfo) {
     // means an 'ACK'
     case 'a':
       console.log('recive:', msg, ', ack_seq:', ack_seq);
-      //sent = false;
       if (base <= ack_seq && nextseqnum > ack_seq) {
         // window slide to 'ack_seq + 1'
         buffer_window = buffer_window.slice(ack_seq - base + 1);

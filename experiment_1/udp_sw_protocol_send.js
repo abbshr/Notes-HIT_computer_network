@@ -13,10 +13,14 @@ var origin = {
 var timeout_flag = null,  /* use timeout to check network env */
     ref = 1,              /* times for timeout retry */
     sent = false;         /* if data has been sent */
+// timeout seconds
+var S = 10;
 
 var buf = null,           /* buffer to send */
     input = null;         /* utf-8 string from standard input */
 
+// seq 0/1
+var seqnum = 0;
 //var seq = new Buffer(1);
 //seq.writeInt8(1);         /* seq for packet */
 
@@ -27,25 +31,29 @@ process.stdin.setEncoding('utf8');
 /* on reciving message from reciver */
 dgram_send.on('message', function (msg, rinfo) {
   clearTimeout(timeout_flag);
-  msg = msg.toString('utf8');
-  console.log('recive:', msg);
+  // get the ack_seq in head
+  var ack_seq = msg.readUInt8(0);
+  // get signal
+  msg = msg.slice(1).toString('utf8');
+  //msg = msg.toString('utf8');
+  console.log('recive:', msg, 'ack_seq:', ack_seq);
   // continue read from stdio & set timeout to 5s
   switch (msg) {
     case 'a':
-      sent = false;
-      process.stdin.resume();
-      break;
+      if (seqnum == (ack_seq + 1) % 2) {
+        sent = false;
+        process.stdin.resume();
+        break;
+      }
     case 'b':
     case 'c':
+    default:
       console.log('retry now...');
       sent = true;
       process.stdin.pause();
       dgram_send.send(buf, 0, buf.length, target.PORT, target.ADDRESS);
-      timeout_flag = setTimeout(timeout_cb, 1000 * 5);
+      timeout_flag = setTimeout(timeout_cb, 1000 * S);
       break;
-    default:
-      sent = false;
-      process.stdin.resume();
   }
 });
 
@@ -60,13 +68,16 @@ function init() {
   buf = new Buffer(input);
   Array.prototype.pop.call(buf);
   /* seq: 0/1 */
-  //seq.writeInt8(++seq.readInt8(0) % 2);
+  var buf_seqnum = new Buffer(1);
+  buf_seqnum.writeInt8(seqnum++, 0);
   /* concat an seq to buf */
-  //buf = Buffer.concat([seq, buf]);
+  /* |1 byte seq|---data---| */
+  buf = Buffer.concat([buf_seqnum, buf]);
   dgram_send.send(buf, 0, buf.length, target.PORT, target.ADDRESS);
   // once send packet, reset ref
   ref = 1;
-  timeout_flag = setTimeout(timeout_cb, 1000 * 5);
+  seqnum %= 2;
+  timeout_flag = setTimeout(timeout_cb, 1000 * S);
   sent = true;
 }
 
@@ -74,6 +85,6 @@ function timeout_cb() {
   clearTimeout(timeout_flag);
   if (ref > 5) console.log('network blocking...'), ref = 1;
   dgram_send.send(buf, 0, buf.length, target.PORT, target.ADDRESS);
-  timeout_flag = setTimeout(arguments.callee, 1000 * 5);
+  timeout_flag = setTimeout(arguments.callee, 1000 * S);
   ref++;
 }

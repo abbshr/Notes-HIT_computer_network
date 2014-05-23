@@ -13,7 +13,7 @@ var target = {};
 var input = null,
     buf = null;
 
-//var lock = true;
+var k = 8;
 
 // seqnum that I expect to recive
 var expectedseqnum = 0;
@@ -25,11 +25,11 @@ dgram_recv.on('message', function (msg, rinfo) {
   // get seqnum
   var seqnum = msg.readUInt8(0);
   // update the expect seqnum
-  expectedseqnum = seqnum + 1;
+  expectedseqnum = (seqnum + 1) % (2 << (k - 1));
   // get data packet
   msg = msg.slice(1);
   console.log('recived message from ', rinfo.address, ':', rinfo.port);
-  console.log('you expect seqnum is ', expectedseqnum);
+  console.log('you expect next seqnum is ', expectedseqnum);
   console.log('seqnum: ', seqnum, ', packet data: ', msg.toString('utf8'));            
   console.log('choose a char to request: a or others');
   console.log('a. ACK\nothers. timeout');
@@ -37,7 +37,6 @@ dgram_recv.on('message', function (msg, rinfo) {
   console.log('e.g.: "a 5"');
   target.ADDRESS = rinfo.address;
   target.PORT = rinfo.port;
-  //lock = false;
   process.stdin.resume();
 });
 
@@ -50,7 +49,6 @@ dgram_recv.on('listening', function () {
 dgram_recv.bind(origin.PORT);
 
 function handle_input_db() {
-  //if (lock) return process.stdin.pause();
   input = process.stdin.read();
   if (!input) return;
   input = input.split(/[\s|\t]+/);
@@ -62,5 +60,4 @@ function handle_input_db() {
   // concat together
   buf = Buffer.concat([ack_seq, signal]);
   dgram_recv.send(buf, 0, buf.length, target.PORT, target.ADDRESS);
-  //lock = true;
 }
