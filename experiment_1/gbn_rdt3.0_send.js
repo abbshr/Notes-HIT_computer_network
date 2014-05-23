@@ -60,9 +60,9 @@ dgram_send.on('message', function (msg, rinfo) {
         if (base != nextseqnum) 
           timeout_flag = setTimeout(timeout_cb, 1000 * S);
         process.stdin.resume();
+        break;
       }
-      break;
-    // means request timeout
+    // means request timeout or false ACK
     default:
       console.log('request timeout & now resending packet...');
       //sent = true;
