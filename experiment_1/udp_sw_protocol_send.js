@@ -38,7 +38,7 @@ dgram_send.on('message', function (msg, rinfo) {
     process.stdin.resume(); 
   } else {
     // get a wrong ack_seq
-    console.log('the packet is broken, resending...');
+    console.log('get a wrong ack_seq, resending...');
     sent = true;
     process.stdin.pause();
     dgram_send.send(buf, 0, buf.length, target.PORT, target.ADDRESS);
@@ -54,20 +54,20 @@ function init() {
   if (sent) return process.stdin.pause();
   input = process.stdin.read();
   if (!input) return;
-  buf = new Buffer(input);
-  Array.prototype.pop.call(buf);
+  input = new Buffer(input);
+  Array.prototype.pop.call(input);
   /* seq: 0/1 */
   var buf_seqnum = new Buffer(1);
   buf_seqnum.writeUInt8(seqnum++, 0);
   /* concat an seq to buf */
   /* |1 byte seq|---data---| */
-  buf = Buffer.concat([buf_seqnum, buf]);
+  buf = Buffer.concat([buf_seqnum, input]);
   // random send wrong seqnum packet
   var rd = random();
   if (rd == 'broken') {
     var wbuf = new Buffer(1);
     wbuf.writeUInt8((seqnum + 1) % 2, 0);
-    wbuf = Buffer.concat([wbuf, new Buffer(input)]);
+    wbuf = Buffer.concat([wbuf, input]);
     dgram_send.send(wbuf, 0, wbuf.length, target.PORT, target.ADDRESS);
   } 
   if (rd == 'ok')
@@ -92,7 +92,7 @@ function timeout_cb() {
 // packet loss 50%
 function random() {
   var num = parseInt(Math.random() * 10);
-  if (num < 3) return 'timeout';
+  if (num < 3) return 'broken';
   if (num < 7) return 'ok';
-  return 'broken';
+  return 'timeout';
 }

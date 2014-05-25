@@ -19,7 +19,7 @@ dgram_recv.on('message', function (msg, rinfo) {
   target.PORT = rinfo.port;
   if (ack_seq == seqnum) {
     ack_seq = (seqnum + 1) % 2;
-    console.log(msg);
+    console.log('seqnum:', seqnum, 'data:', msg);
   }
   var buf_ack_seq = new Buffer(1);
   buf_ack_seq.writeUInt8((ack_seq + 1) % 2, 0);
@@ -47,7 +47,7 @@ dgram_recv.bind(origin.PORT);
 // packet loss 50%
 function random() {
   var num = parseInt(Math.random() * 10);
-  if (num < 5) return 'timeout';
+  if (num < 3) return 'broken';
   if (num < 8) return 'ok';
-  return 'broken';
+  return 'timeout';
 }
