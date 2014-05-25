@@ -25,8 +25,7 @@ var k = 8;
 var buffer_window = [];
 
 // standard input stream
-var input = null,
-    buf = null;
+var input = null;
 
 // timeout flag
 var timeout_flag;
@@ -43,38 +42,18 @@ process.stdin.setEncoding('utf8');
 dgram_send.on('message', function (msg, rinfo) {
   // resolve seqnum
   var ack_seq = msg.readUInt8(0);
-  // resolve data
-  msg = msg.slice(1).toString('utf8');
-  
-  // continue read from stdio & set timeout to 5s
-  switch (msg) {
-    // means an 'ACK'
-    case 'a':
-      console.log('recive:', msg, ', ack_seq:', ack_seq);
-      if (base <= ack_seq && nextseqnum > ack_seq) {
-        // window slide to 'ack_seq + 1'
-        buffer_window = buffer_window.slice(ack_seq - base + 1);
-        base = ack_seq + 1;
-        clearTimeout(timeout_flag);
-        // is there are packet not acked, restart the timer
-        if (base != nextseqnum) 
-          timeout_flag = setTimeout(timeout_cb, 1000 * S);
-        process.stdin.resume();
-        break;
-      }
-    // means request timeout or false ACK
-    default:
-      console.log('request timeout & now resending packet...');
-      //sent = true;
-      process.stdin.pause();
-      // resend all buffered packet
-      buffer_window.forEach(function (buf, i) {
-        dgram_send.send(buf, 0, buf.length, target.PORT, target.ADDRESS);
-      });
-      // setting timeout for the first-not-acked packet
+  // recive legall ack_seq num
+  if (base <= ack_seq && nextseqnum > ack_seq) {
+    // window slide to 'ack_seq + 1'
+    buffer_window = buffer_window.slice(ack_seq - base + 1);
+    base = ack_seq + 1;
+    clearTimeout(timeout_flag);
+    // is there are packet not acked, restart the timer
+    if (base != nextseqnum) 
       timeout_flag = setTimeout(timeout_cb, 1000 * S);
-      break;
-  }
+    process.stdin.resume();
+  } 
+  /* else do nothing*/
 });
 
 // block the process & waiting for recv
@@ -83,23 +62,33 @@ dgram_send.bind(origin.PORT);
 // init process send a msg & set a timeout
 function handle_input_cb() {
   // if input buffered size over window size, locked
+  console.log(nextseqnum, base);
   if (nextseqnum > base + N - 1) {
     console.log('has been up to max window size limit');
     return process.stdin.pause();
   }
   input = process.stdin.read();
   if (!input) return;
-  buf = new Buffer(input);
+  input = new Buffer(input);
   // get the data
-  Array.prototype.pop.call(buf);
+  Array.prototype.pop.call(input);
   /* segment struct:
   * |1 byte seq|---data---|
   */
   // concat with the seqnum
   var buf_nextseqnum = new Buffer(1);
   buf_nextseqnum.writeUInt8(nextseqnum, 0);
-  buf = Buffer.concat([buf_nextseqnum, buf]);
-  dgram_send.send(buf, 0, buf.length, target.PORT, target.ADDRESS);
+  var buf = Buffer.concat([buf_nextseqnum, input]);
+  // start random sender
+  var rd = random();
+  if (rd == 'SEND_ORIGIN_MSG')
+    dgram_send.send(buf, 0, buf.length, target.PORT, target.ADDRESS);
+  if (rd == 'SEND_GEN_MSG') {
+    var wnextseqnum = new Buffer(1);
+    wnextseqnum.writeUInt8((nextseqnum + 1) % (2 << (k - 1)), 0);
+    var wbuf = Buffer.concat([wnextseqnum, input]);
+    dgram_send.send(wbuf, 0, wbuf.length, target.PORT, target.ADDRESS);
+  } 
   // buffered the current packet
   buffer_window[nextseqnum - base] = buf;
   // reset ref
@@ -112,7 +101,7 @@ function handle_input_cb() {
 }
 
 function timeout_cb() { 
-  clearTimeout(timeout_flag);
+  console.log('timeout, resending...');
   if (ref > 5) console.log('network blocking...'), ref = 1;
   // resend all buffered packet
   buffer_window.forEach(function (buf, i) {
@@ -120,4 +109,16 @@ function timeout_cb() {
   });
   timeout_flag = setTimeout(arguments.callee, 1000 * S);
   ref++;
+}
+
+/* random send tool, control sending
+*  10% timeout
+*  50% send the correct seqnum packet
+*  30% send the incorrect seqnum packet
+*/
+function random() {
+  var num = parseInt(Math.random() * 10);
+  if (num < 5) return 'SEND_ORIGIN_MSG';
+  if (num < 8) return 'SEND_GEN_MSG';
+  return 'TIMEOUT_NOT_SEND';
 }
